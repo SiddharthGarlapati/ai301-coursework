@@ -34,7 +34,12 @@ will fail eval issues designed around that family.
 
 | Check | Evidence | Pass condition | Weight |
 |---|---|---|---|
-|  |  |  |  |
+| maintainer-alive | Last 5 default-branch commits and maintainer response sample in the repo-facts block | Pass if there is human maintainer activity within the last 90 days. | required |
+| repo-in-use | Archived status, last push, and last 5 default-branch commits in the repo-facts block | Pass if the repo is not archived and has activity within the last 90 days. | required |
+<!-- | newcomer-scope | Issue body, labels, linked PRs, and comment thread | Pass if the issue has one bounded goal. Multiple related changes for the same goal are allowed. A short issue can pass if it is opened by a maintainer or labeled good first issue. Fail if it is an umbrella/tracking issue, a support question, has unresolved design, or has 2 or more abandoned implementation attempts such as closed unmerged PRs. | required | -->
+| newcomer-scope | Issue body, labels, linked PRs, and comment thread | Pass if the issue has one main goal. Multiple related changes, causes, or possible fixes for the same goal are allowed. A short issue can pass if it is opened by a maintainer or labeled good first issue. Fail if it is an umbrella/tracking issue, a support question, the comments show unresolved design with no maintainer-set direction, or there are 2 or more abandoned implementation attempts. | required |
+| unclaimed | Assignees, linked PRs, and complete comment thread | Pass if nobody is currently assigned or actively working on the issue and there is no open PR. Old claims, closed PRs, and abandoned or expired claims do not count. | required |
+| contribution-policy | Contribution policy in the repo-facts block | Pass unless the repo explicitly bans AI-assisted contributions. Conditions such as disclosure or testing are allowed. No stated policy also passes. | required |
 
 ## Verdict rule
 
@@ -42,3 +47,5 @@ will fail eval issues designed around that family.
 unclear is treated. Example shape (write your own): "accept if every
 required check passes; preferred checks never change the verdict, they
 rank accepted issues; unclear counts as fail." -->
+
+Accept only if every required check passes. Reject if any required check fails. Unclear counts as fail.
