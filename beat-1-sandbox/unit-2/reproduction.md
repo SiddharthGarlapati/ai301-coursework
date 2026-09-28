@@ -15,8 +15,7 @@ label is not graded.
 
 **GitHub username**
 
-[Your GitHub username, exactly as it appears on your profile — no `@`, no profile URL. Your
-comments upstream are identified by this name.]
+SiddharthGarlapati
 
 ---
 
@@ -24,46 +23,189 @@ comments upstream are identified by this name.]
 
 **Claim comment**
 
-[Link to the comment where you claimed the issue. Use the comment's own permalink, not the
-issue page on its own. **Then paste the text of that comment underneath the link** — the
-pasted text is what this field is graded on, so copy across what you actually posted.]
+https://github.com/codepath/pathreview-ai301-fa26-s3/issues/68#issuecomment-5864746515
+
+Picking this up: the reported `KeywordSearcher.index([])` behavior raises a `ZeroDivisionError` when the empty tokenized corpus is passed to `BM25Okapi`, while `search()` already handles the empty case by returning an empty list.
+
+I'll reproduce the reported behavior using the repository's documented setup, record the environment and exact steps, and verify the existing `H-01` xfail test behavior.
+
+I'll post the reproduction results and evidence here after testing.
 
 **Reproduction comment**
 
-[Link to the comment where you posted your reproduction. It must record the environment
-(OS, relevant versions, code state), steps a stranger could follow, and what you observed.
-**Then paste the text of that comment underneath the link** — the pasted text is what this
-field is graded on, so copy across what you actually posted.]
+https://github.com/codepath/pathreview-ai301-fa26-s3/issues/68#issuecomment-5865430283
+
+# Reproduction Report — Issue #68
+
+## Environment
+
+- OS: macOS 26.6.1
+- Build: 25G76
+- Python: 3.11.7
+- Repository commit: `2f4e82f`
+- `rank-bm25`: 0.2.2
+- Repository: `codepath/pathreview-ai301-fa26-s3`
+
+## Setup
+
+From the repository root, I used a Python 3.11 virtual environment and installed the project development dependencies:
+
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+pip install -e ".[dev]"
+```
+
+## Reproduction Steps
+
+First, I ran the existing empty-index test:
+
+```bash
+pytest tests/unit/test_keyword_search.py::TestKeywordSearcher::test_empty_index -vv -rxX
+```
+
+Observed result:
+
+```text
+tests/unit/test_keyword_search.py::TestKeywordSearcher::test_empty_index XFAIL
+(issue #68 (manifest H-01): BM25 keyword search raises ZeroDivisionError on an empty index)
+
+1 xfailed in 0.25s
+```
+
+This confirms that the existing test is currently marked as an expected failure for issue #68 / manifest H-01.
+
+Then I called `KeywordSearcher.index([])` directly:
+
+```bash
+python - <<'PY'
+from rag.retriever.keyword_search import KeywordSearcher
+
+searcher = KeywordSearcher()
+searcher.index([])
+PY
+```
+
+## Expected Behavior
+
+`KeywordSearcher.index([])` should handle an empty corpus without raising an exception.
+
+This would be consistent with `KeywordSearcher.search()`, which already handles the empty state by returning an empty list.
+
+## Observed Behavior
+
+Calling:
+
+```python
+searcher.index([])
+```
+
+raises:
+
+```text
+ZeroDivisionError: division by zero
+```
+
+Relevant traceback:
+
+```text
+File "rag/retriever/keyword_search.py", line 25, in index
+    self.bm25 = BM25Okapi(tokenized_corpus)
+
+File "rank_bm25.py", line 52, in _initialize
+    self.avgdl = num_doc / self.corpus_size
+
+ZeroDivisionError: division by zero
+```
+
+The empty tokenized corpus is passed to `BM25Okapi`, whose initialization attempts to divide by the corpus size, which is zero.
+
+## Result
+
+Reproduced.
+
+The observed behavior matches issue #68: `KeywordSearcher.index([])` raises a `ZeroDivisionError` when given an empty corpus.
+
+The existing `test_empty_index` test is also marked `XFAIL` with the reason:
+
+```text
+issue #68 (manifest H-01): BM25 keyword search raises ZeroDivisionError on an empty index
+```
+
+No source code or test markers were modified during reproduction.
+
+---
 
 ## Eval iterations
 
-Answer all four sections. Quote source text directly; paraphrase does not satisfy these
-fields.
-
 **Run history**
 
-[The agreement score of each run you did, in order. A single run is a complete answer if
-only one run occurred. **The last score in your list must match the agreement line in the
-`eval-run.txt` you committed** — that file is the record of your final run.]
+Partial setup run: 3/3 agreement.
+
+First full run: 20/20 agreement. All categories matched:
+
+- clear-accept: 8/8
+- disclosure: 1/1
+- no-evidence: 4/4
+- unfollowable-comms: 3/3
+- wrong-target: 4/4
+
+Final saved full run: 20/20 agreement.
+
+No rubric revisions were required after the first full run because it already matched all 20 gold labels and every category.
 
 **Package analysis**
 
-[Pick one scored package (`pkg-01` through `pkg-20` — the four `calib-` packages are never
-scored). Name it by id, say what your rubric decided and what the gold label said, and
-explain why your rubric read it that way.]
+Package: `pkg-02`
+
+My rubric verdict: `reject`
+
+Gold label: `reject`
+
+The issue reports a panic caused by this command:
+
+```text
+bat --no-config --paging=never --line-range ':-18446744073709551614' -
+```
+
+with:
+
+```text
+capacity overflow
+```
+
+and exit code `101`.
+
+The candidate reproduction instead runs:
+
+```text
+bat --no-config --paging=never --line-range '18446744073709551614:' -
+```
+
+and observes:
+
+```text
+error: Invalid value for '--line-range': Expected single number or two numbers separated by ':'
+```
+
+with exit code `1`.
+
+My rubric therefore rejects the package because the artifact demonstrates a different failure from the one described by the issue. The reproduction changes the range syntax, receives an argument-validation error instead of the reported panic, and then incorrectly claims that the original crash was reproduced.
 
 **Check rationale**
 
-[Quote one check from the `rubric.md` you uploaded to `tools/repro-check/`, exactly as it reads now.
-Then say why it reads that way — what you revised to get there, or what you rejected in
-favour of it.]
+> `| behavior-matches-issue | The issue's described failure or behavior compared directly with the repro report's observed behavior and artifacts. | Pass if the behavior demonstrated by the reproduction is the same behavior the issue reports, or the report clearly explains a meaningful tested difference. Fail if the artifact shows an adjacent or unrelated failure and the report claims that the original issue was reproduced. | required |`
+
+I wrote this check to judge the actual observed behavior rather than the formatting or confidence of the report. A reproduction can look complete and polished while still testing the wrong command or demonstrating a different error. I rejected structure-based rules such as requiring a certain number of sections because those do not prove that the artifact actually matches the issue.
+
+`pkg-02` demonstrates why this check matters: the report confidently says the crash is reproduced, but its command and output show an argument-validation error with exit code `1`, while the issue describes a `capacity overflow` panic with exit code `101`.
 
 **Trade-offs**
 
-[Every check gives something up. Any one of these is a complete answer: a package whose
-result it changes, a canary you re-ran with `--only`, a case you accept it will miss, or a
-stated reason nothing changed elsewhere. "Nothing changed, and here is how I know" earns
-the point in full when the reason follows.]
+I did not loosen or tighten the rubric after the first full evaluation because it already produced 20/20 agreement and matched every category. Changing a required check without evidence that it needed revision could have caused a package that already matched the gold label to flip.
+
+The `behavior-matches-issue` check intentionally gives up some permissiveness: a report that reaches a related or adjacent failure is rejected when it claims to have reproduced the original issue. I accept that trade-off because the purpose of the reproduction package is to provide evidence for the specific behavior reported by the issue, not merely evidence that something failed.
 
 ---
 
